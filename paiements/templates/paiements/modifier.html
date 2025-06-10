@@ -1,0 +1,11 @@
+{% extends 'paiements/form_base.html' %}
+
+
+{% block title %}Modifier le paiement{% endblock %}
+{% block form_title %}Modifier le paiement{% endblock %}
+{% block form_buttons %}
+<div class="d-flex justify-content-between mt-4">
+    <a href="{% url 'liste_paiements' %}" class="btn btn-outline-secondary">← Annuler</a>
+    <button type="submit" class="btn btn-primary">✏️ Modifier</button>
+</div>
+{% endblock %}

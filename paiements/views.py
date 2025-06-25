@@ -1,22 +1,14 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.core.paginator import Paginator
 from django.http import HttpResponse
 from django.template.loader import get_template
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from xhtml2pdf import pisa
 import pandas as pd
 from .models import ClientPaiement
-from .forms import ClientPaiementForm
-from .forms import InscriptionForm
+from .forms import ClientPaiementForm, InscriptionForm
 from django.contrib import messages
-
 from django.contrib.auth.decorators import login_required
-from xhtml2pdf import pisa
-import io
-
-
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
 
 def connexion(request):
     if request.method == 'POST':
@@ -38,12 +30,12 @@ def deconnexion(request):
 
 @login_required
 def liste_paiements(request):
-    paiements_list = ClientPaiement.objects.all().order_by('-date_paiement')
-    paginator = Paginator(paiements_list, 10)
-    page_number = request.GET.get('page')
-    paiements = paginator.get_page(page_number)
+    query = request.GET.get('q', '').strip()
+    paiements = ClientPaiement.objects.all().order_by('-date_paiement')
+    if query:
+        paiements = paiements.filter(Q(nom__icontains=query) | Q(prenom__icontains=query))
 
-    totaux = ClientPaiement.objects.aggregate(
+    totaux = paiements.aggregate(
         total_demande=Sum('montant_demande'),
         total_verse=Sum('montant_verse'),
     )
@@ -56,6 +48,7 @@ def liste_paiements(request):
         'total_demande': total_demande,
         'total_verse': total_verse,
         'total_solde': total_solde,
+        'query': query,
     })
 
 @login_required
@@ -104,6 +97,7 @@ def export_excel(request):
     response['Content-Disposition'] = 'attachment; filename="paiements.xlsx"'
     df.to_excel(response, index=False)
     return response
+
 @login_required
 def export_pdf(request):
     paiements = ClientPaiement.objects.all().order_by('-date_paiement')
@@ -130,19 +124,13 @@ def export_pdf(request):
         return HttpResponse('Erreur lors de la génération du PDF', status=500)
     return response
 
-from .forms import InscriptionForm
-from django.contrib import messages
-
 def inscription(request):
     if request.method == 'POST':
         form = InscriptionForm(request.POST)
         if form.is_valid():
             form.save()
             messages.success(request, "Inscription réussie ! Vous pouvez maintenant vous connecter.")
-            return redirect('login')  # Redirige vers ta vue login
+            return redirect('login')
     else:
         form = InscriptionForm()
     return render(request, 'paiements/inscription.html', {'form': form})
-
-
-
